@@ -1,4 +1,6 @@
 // Pump.fun API integration
+import { Connection, VersionedTransaction, VersionedMessage } from "@solana/web3.js"
+
 export interface PumpFunTokenData {
   name: string
   symbol: string
@@ -72,6 +74,9 @@ export async function createPumpFunToken(
         ...tokenData,
         creator: creatorPublicKey,
         buyAmount: buyAmount,
+        walletPubkey: creatorPublicKey,
+        mintPubkey: `mint_${Date.now()}`, // This will be generated server-side
+        metadataUri: `ipfs://metadata_${Date.now()}`, // This will be generated server-side
       }),
     })
 
@@ -83,12 +88,59 @@ export async function createPumpFunToken(
       throw new Error(errorData.details || `Failed to create token on Pump.fun: ${response.status}`)
     }
 
-    const result = await response.json()
-    console.log("[v0] Real Pump.fun API success:", result)
+    const contentType = response.headers.get("content-type") || ""
+    let transaction: VersionedTransaction
+
+    if (contentType.includes("application/octet-stream")) {
+      console.log("[v0] Received binary transaction data")
+      const rawTransaction = new Uint8Array(await response.arrayBuffer())
+      transaction = VersionedTransaction.deserialize(rawTransaction)
+    } else {
+      console.log("[v0] Received JSON response")
+      const json = await response.json()
+
+      if (json.transaction) {
+        const rawTransaction = Buffer.from(json.transaction, "base64")
+        transaction = VersionedTransaction.deserialize(rawTransaction)
+      } else if (json.message) {
+        const messageBytes = Buffer.from(json.message, "base64")
+        const message = VersionedMessage.deserialize(messageBytes)
+        transaction = new VersionedTransaction(message)
+      } else {
+        throw new Error("Unexpected create-tx response shape")
+      }
+    }
+
+    console.log("[v0] Transaction deserialized successfully")
+
+    if (!window.solana) {
+      throw new Error("Phantom wallet not found")
+    }
+
+    console.log("[v0] Signing transaction with wallet...")
+    const signedTransaction = await window.solana.signTransaction(transaction)
+
+    console.log("[v0] Sending transaction to network...")
+    const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "/api/solana", "confirmed")
+
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+      skipPreflight: true,
+    })
+
+    console.log("[v0] Transaction sent, signature:", signature)
+
+    await connection.confirmTransaction(signature, "confirmed")
+    console.log("[v0] Transaction confirmed")
 
     return {
-      transaction: result.transaction || result.tokenData.signature,
-      tokenData: result.tokenData,
+      transaction: signature,
+      tokenData: {
+        mint: "generated_mint_address", // This would come from the transaction
+        bondingCurve: "generated_bonding_curve",
+        associatedBondingCurve: "generated_associated_bonding_curve",
+        metadata: "metadata_uri",
+        metadataUri: "metadata_uri",
+      },
     }
   } catch (error) {
     console.error("[v0] Error in createPumpFunToken:", error)

@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { Keypair } from "@solana/web3.js"
 
+export const runtime = "nodejs"
+
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] Starting real Pump.fun token creation...")
@@ -224,44 +226,86 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const createTokenPayload = {
-      privateKey: Array.from(mintKeypair.secretKey)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(""), // Convert to hex string
-      amount: (buyAmount || 0) * 1000000000, // Convert SOL to lamports
-      name: name,
-      symbol: symbol,
-      initialSupply: 1000000000, // 1 billion tokens (standard for pump.fun)
-      metadataUri: metadataResult.metadataUri,
-      description: description,
-      image: metadataResult.imageUri || "",
-      website: website || "https://gitr.fun",
-    }
+    // Calling PumpPortal trade-local API...
+    console.log("[v0] Calling PumpPortal trade-local API...")
 
-    console.log("[v0] Creating token with official PumpFun API...")
-    console.log("[v0] Payload:", JSON.stringify({ ...createTokenPayload, privateKey: "[REDACTED]" }, null, 2))
-
-    console.log("[v0] Using mock implementation for token creation...")
-
-    const mockTokenData = {
+    const pumpPortalPayload = {
+      publicKey: creator,
+      action: "create",
+      tokenMetadata: {
+        name: name,
+        symbol: symbol,
+        uri: metadataResult.metadataUri,
+      },
       mint: mintKeypair.publicKey.toString(),
-      bondingCurve: `bonding_${Date.now()}`,
-      associatedBondingCurve: `assoc_bonding_${Date.now()}`,
-      metadata: metadataResult.metadataUri,
-      metadataUri: metadataResult.metadataUri,
-      signature: `pump_tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      transactionId: `tx_${Date.now()}`,
-      success: true,
-      message: "Token created successfully (mock implementation)",
+      denominatedInSol: "true",
+      amount: buyAmount ?? 1,
+      slippage: 10,
+      priorityFee: 0.0005,
+      pool: "pump",
     }
 
-    console.log("[v0] Mock token creation successful:", mockTokenData)
+    console.log("[v0] PumpPortal payload:", pumpPortalPayload)
 
-    return NextResponse.json({
-      transaction: mockTokenData.signature,
-      tokenData: mockTokenData,
-      success: true,
-      message: "Token created successfully on Pump.fun!",
+    let pumpPortalResponse
+    try {
+      pumpPortalResponse = await fetch("https://pumpportal.fun/api/trade-local", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pumpPortalPayload),
+        duplex: "half" as any, // fixes edge runtimes
+      })
+    } catch (networkError) {
+      console.error("[v0] PumpPortal network error:", networkError)
+      return NextResponse.json(
+        {
+          error: "PumpPortal network error",
+          details: `Failed to connect to PumpPortal: ${networkError instanceof Error ? networkError.message : "Network error"}`,
+          errorCode: "PUMPPORTAL_NETWORK_ERROR",
+        },
+        { status: 503 },
+      )
+    }
+
+    const contentType = pumpPortalResponse.headers.get("content-type") || ""
+    console.log("[v0] PumpPortal response content-type:", contentType)
+
+    if (contentType.includes("application/json")) {
+      const json = await pumpPortalResponse.json()
+      if (!pumpPortalResponse.ok) {
+        console.error("[v0] PumpPortal JSON error:", json)
+        return NextResponse.json(
+          {
+            error: "PumpPortal API error",
+            details: json.error || `PumpPortal returned ${pumpPortalResponse.status}`,
+            errorCode: "PUMPPORTAL_API_ERROR",
+          },
+          { status: pumpPortalResponse.status },
+        )
+      }
+      console.log("[v0] PumpPortal JSON response:", json)
+      return NextResponse.json(json, { status: 200 })
+    }
+
+    if (!pumpPortalResponse.ok) {
+      const text = await pumpPortalResponse.text()
+      console.error("[v0] PumpPortal error:", text)
+      return NextResponse.json(
+        {
+          error: "PumpPortal trade-local failed",
+          details: text,
+          errorCode: "PUMPPORTAL_TRADE_FAILED",
+        },
+        { status: pumpPortalResponse.status },
+      )
+    }
+
+    const transactionBuffer = await pumpPortalResponse.arrayBuffer()
+    console.log("[v0] PumpPortal returned binary transaction, size:", transactionBuffer.byteLength)
+
+    return new NextResponse(transactionBuffer, {
+      status: 200,
+      headers: { "Content-Type": "application/octet-stream" },
     })
   } catch (error) {
     console.error("[v0] Unexpected error in Pump.fun token creation:", error)
