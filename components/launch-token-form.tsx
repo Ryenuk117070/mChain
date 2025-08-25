@@ -15,7 +15,7 @@ import { RepoSelector } from "@/components/repo-selector"
 import { WalletButton } from "@/components/wallet-button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Github, Rocket, Check, Wallet, AlertCircle, Upload, X, RefreshCw } from "lucide-react"
+import { Github, Rocket, Check, Wallet, AlertCircle, Upload, X, RefreshCw, LogOut } from "lucide-react"
 import { uploadMetadata, createPumpFunToken, type TokenMetadata } from "@/lib/pump-fun"
 
 interface RepoData {
@@ -30,7 +30,7 @@ interface RepoData {
 }
 
 export function LaunchTokenForm() {
-  const { connected, publicKey, signTransaction } = useWallet()
+  const { connected, publicKey, signTransaction, disconnect } = useWallet()
   const { toast } = useToast()
   const [step, setStep] = useState(1)
   const [selectedRepo, setSelectedRepo] = useState<RepoData | null>(null)
@@ -329,6 +329,24 @@ export function LaunchTokenForm() {
     }
   }
 
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnect()
+      setSolBalance(null)
+      toast({
+        title: "Wallet Disconnected",
+        description: "Your wallet has been disconnected successfully.",
+      })
+    } catch (error) {
+      console.error("[v0] Error disconnecting wallet:", error)
+      toast({
+        title: "Disconnect Error",
+        description: "Failed to disconnect wallet. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
       {!connected && (
@@ -350,7 +368,9 @@ export function LaunchTokenForm() {
             <div className="flex items-center gap-4">
               <Wallet className="h-5 w-5 text-green-600" />
               <div>
-                <p className="text-sm font-medium text-green-800">SOL Balance</p>
+                <p className="text-sm font-medium text-green-800">
+                  SOL Balance {publicKey && `(${publicKey.toString().slice(0, 3)}...)`}
+                </p>
                 <p className="text-lg font-bold text-green-900">
                   {loadingBalance ? (
                     <span className="flex items-center gap-2">
@@ -365,15 +385,25 @@ export function LaunchTokenForm() {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchSolBalance}
-              disabled={loadingBalance}
-              className="border-green-300 text-green-700 hover:bg-green-100 bg-transparent"
-            >
-              <RefreshCw className={`h-4 w-4 ${loadingBalance ? "animate-spin" : ""}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSolBalance}
+                disabled={loadingBalance}
+                className="border-green-300 text-green-700 hover:bg-green-100 bg-transparent"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingBalance ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDisconnectWallet}
+                className="border-red-300 text-red-700 hover:bg-red-100 bg-transparent"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
