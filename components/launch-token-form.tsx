@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Github, Rocket, Check, AlertCircle, Upload, X } from "lucide-react"
 import { requestPumpCreateTx } from "@/lib/pump-fun"
-import { sendAndConfirmWithRetry } from "@/lib/tx-confirm"
+import { sendWithRebuildOnExpired } from "@/lib/tx-rebuild"
 import SolBalanceCard from "@/components/sol-balance-card"
 
 interface RepoData {
@@ -178,7 +178,7 @@ export function LaunchTokenForm() {
 
       toast({
         title: "Starting token launch...",
-        description: "Uploading metadata to IPFS",
+        description: "Preparing transaction with fresh blockhash",
       })
 
       let imageUrl = tokenData.imageUrl || "/generic-token-logo.png"
@@ -192,40 +192,41 @@ export function LaunchTokenForm() {
         imageUrl = await base64Promise
       }
 
-      toast({
-        title: "Creating token on Pump.fun...",
-        description: "Please wait while we prepare your transaction",
-      })
+      const buildTx = async (): Promise<VersionedTransaction> => {
+        console.log("[v0] Building transaction with fresh blockhash...")
 
-      const txResp = await requestPumpCreateTx({
-        name: tokenData.name,
-        symbol: tokenData.symbol,
-        description: tokenData.description,
-        image: imageUrl,
-        website: selectedRepo.url,
-        walletPubkey: publicKey.toString(),
-        mintPubkey: currentMintKeypair.publicKey.toString(),
-        buyAmount: Number.parseFloat(buyAmount),
-      })
+        const txResp = await requestPumpCreateTx({
+          name: tokenData.name,
+          symbol: tokenData.symbol,
+          description: tokenData.description,
+          image: imageUrl,
+          website: selectedRepo.url,
+          walletPubkey: publicKey.toString(),
+          mintPubkey: currentMintKeypair.publicKey.toString(),
+          buyAmount: Number.parseFloat(buyAmount),
+        })
 
-      let vtx: VersionedTransaction
-      if (txResp.kind === "bytes") {
-        vtx = VersionedTransaction.deserialize(txResp.bytes)
-      } else if (txResp.kind === "transaction") {
-        const raw = Buffer.from(txResp.base64, "base64")
-        vtx = VersionedTransaction.deserialize(raw)
-      } else {
-        const msgBytes = Buffer.from(txResp.base64, "base64")
-        const msg = VersionedMessage.deserialize(msgBytes)
-        vtx = new VersionedTransaction(msg)
-      }
+        let vtx: VersionedTransaction
+        if (txResp.kind === "bytes") {
+          vtx = VersionedTransaction.deserialize(txResp.bytes)
+        } else if (txResp.kind === "transaction") {
+          const raw = Buffer.from(txResp.base64, "base64")
+          vtx = VersionedTransaction.deserialize(raw)
+        } else {
+          const msgBytes = Buffer.from(txResp.base64, "base64")
+          const msg = VersionedMessage.deserialize(msgBytes)
+          vtx = new VersionedTransaction(msg)
+        }
 
-      const requiredSigners = getRequiredSignerPubkeys(vtx)
-      console.log("[v0] Required signers:", requiredSigners)
+        const requiredSigners = getRequiredSignerPubkeys(vtx)
+        console.log("[v0] Required signers:", requiredSigners)
 
-      if (requiredSigners.includes(currentMintKeypair.publicKey.toBase58())) {
-        console.log("[v0] Mint keypair signature required, partial-signing...")
-        vtx.sign([currentMintKeypair])
+        if (requiredSigners.includes(currentMintKeypair.publicKey.toBase58())) {
+          console.log("[v0] Mint keypair signature required, partial-signing...")
+          vtx.sign([currentMintKeypair])
+        }
+
+        return vtx
       }
 
       toast({
@@ -233,46 +234,25 @@ export function LaunchTokenForm() {
         description: "Please sign the transaction in your wallet...",
       })
 
-      const signed = await signTransaction(vtx)
       const conn = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "/api/solana", "confirmed")
 
+      const signature = await sendWithRebuildOnExpired(conn, buildTx, signTransaction, { commitment: "confirmed" })
+
+      console.log("[v0] Pump create confirmed:", signature)
+
       toast({
-        title: "Transaction signed!",
-        description: "Sending to blockchain...",
+        title: "🎉 Token launched successfully!",
+        description: `${tokenData.symbol} is now live on Pump.fun`,
       })
 
-      try {
-        const signature = await sendAndConfirmWithRetry(conn, signed, { maxWaitMs: 45000 })
-        console.log("[v0] Pump create confirmed:", signature)
-
-        const response = await fetch("/api/projects/create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            repoData: selectedRepo,
-            tokenData,
-            pumpFunData: {
-              mint: currentMintKeypair.publicKey.toString(),
-              bondingCurve: "generated_bonding_curve",
-              associatedBondingCurve: "generated_associated_bonding_curve",
-              metadata: "metadata_uri",
-              metadataUri: "metadata_uri",
-            },
-            metadataUri: "metadata_uri",
-            buyAmount: Number.parseFloat(buyAmount),
-            transactionSignature: signature,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error("Failed to save project data")
-        }
-
-        const projectResult = await response.json()
-        setLaunchResult({
-          ...projectResult,
+      const response = await fetch("/api/projects/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          repoData: selectedRepo,
+          tokenData,
           pumpFunData: {
             mint: currentMintKeypair.publicKey.toString(),
             bondingCurve: "generated_bonding_curve",
@@ -280,30 +260,31 @@ export function LaunchTokenForm() {
             metadata: "metadata_uri",
             metadataUri: "metadata_uri",
           },
+          metadataUri: "metadata_uri",
           buyAmount: Number.parseFloat(buyAmount),
           transactionSignature: signature,
-        })
+        }),
+      })
 
-        toast({
-          title: "🎉 Token launched successfully!",
-          description: `${tokenData.symbol} is now live on Pump.fun`,
-        })
-
-        setStep(3)
-      } catch (sendError: any) {
-        console.error("[v0] Transaction send error:", sendError)
-
-        if (sendError.name === "SendTransactionError") {
-          try {
-            const logs = await sendError.getLogs(conn)
-            console.error("[v0] On-chain logs:", logs)
-          } catch (logError) {
-            console.error("[v0] Failed to get transaction logs:", logError)
-          }
-        }
-
-        throw sendError
+      if (!response.ok) {
+        throw new Error("Failed to save project data")
       }
+
+      const projectResult = await response.json()
+      setLaunchResult({
+        ...projectResult,
+        pumpFunData: {
+          mint: currentMintKeypair.publicKey.toString(),
+          bondingCurve: "generated_bonding_curve",
+          associatedBondingCurve: "generated_associated_bonding_curve",
+          metadata: "metadata_uri",
+          metadataUri: "metadata_uri",
+        },
+        buyAmount: Number.parseFloat(buyAmount),
+        transactionSignature: signature,
+      })
+
+      setStep(3)
     } catch (error) {
       console.error("[v0] Error launching token:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to launch token"

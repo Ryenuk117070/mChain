@@ -49,6 +49,7 @@ export async function requestPumpCreateTx(input: {
   walletPubkey: string
   mintPubkey: string // Added mint public key parameter
   buyAmount: number
+  priorityFee?: number // Added optional priority fee parameter for blockhash retry
 }): Promise<PumpPortalTx> {
   const res = await fetch("/api/pump-fun/create", {
     method: "POST",
@@ -62,6 +63,7 @@ export async function requestPumpCreateTx(input: {
       creator: input.walletPubkey,
       mintPubkey: input.mintPubkey, // Send mint public key to server
       buyAmount: input.buyAmount,
+      priorityFee: input.priorityFee, // Pass priority fee to server for retry logic
     }),
   })
 

@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, symbol, description, image, website, creator, mintPubkey, buyAmount } = requestData
-    console.log("[v0] Token data received:", { name, symbol, description, creator, mintPubkey, buyAmount })
+    const { name, symbol, description, image, website, creator, mintPubkey, buyAmount, priorityFee } = requestData
+    console.log("[v0] Token data received:", { name, symbol, description, creator, mintPubkey, buyAmount, priorityFee })
 
     const missingFields = []
     if (!name) missingFields.push("name")
@@ -215,6 +215,10 @@ export async function POST(request: NextRequest) {
     // Calling PumpPortal trade-local API...
     console.log("[v0] Calling PumpPortal trade-local API...")
 
+    const basePriorityFee = priorityFee || 0.001
+    const finalPriorityFee = priorityFee ? Math.min(priorityFee * 1.5, 0.005) : basePriorityFee
+    console.log("[v0] Using priority fee:", finalPriorityFee, "(base:", basePriorityFee, ")")
+
     const pumpPortalPayload = {
       publicKey: creator,
       action: "create",
@@ -227,7 +231,7 @@ export async function POST(request: NextRequest) {
       denominatedInSol: "true",
       amount: buyAmount ?? 1,
       slippage: 10,
-      priorityFee: 0.001, // Bumped priority fee from 0.0005 to 0.001 for better confirmation reliability
+      priorityFee: finalPriorityFee,
       pool: "pump",
     }
 
