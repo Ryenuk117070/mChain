@@ -111,7 +111,7 @@ importers:
         specifier: latest
         version: 0.7.0(@supabase/supabase-js@2.56.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@supabase/supabase-js':
-        specifier: ^2.46.2
+        specifier: latest
         version: 2.56.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       autoprefixer:
         specifier: ^10.4.20
@@ -9717,7 +9717,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.0.0
+      '@types/node': 22.18.0
       form-data: 4.0.4
 
   '@types/node@12.20.55': {}
@@ -9758,7 +9758,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.0.0
+      '@types/node': 22.18.0
 
   '@types/yargs-parser@21.0.3': {}
 
@@ -12328,7 +12328,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 22.0.0
+      '@types/node': 22.18.0
       long: 5.2.5
 
   proxy-compare@2.6.0: {}

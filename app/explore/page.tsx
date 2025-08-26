@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 60
@@ -10,7 +10,7 @@ function short(s: string) {
 
 export default async function ExplorePage() {
   try {
-    const supabase = createClient()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from("projects")
