@@ -2,9 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingSection } from "@/components/trending-section"
 import { Header } from "@/components/header"
 import { Github, Rocket, TrendingUp, Users } from "lucide-react"
+import dynamic from "next/dynamic"
+const RecentLaunches = dynamic(() => import("@/components/recent-launches"), { ssr: true })
 
 export default async function HomePage() {
   let user = null
@@ -68,7 +69,7 @@ export default async function HomePage() {
                 </Button>
               </Link>
             )}
-            <Link href="/explore">
+            <Link href="/gitscreener">
               <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
                 <TrendingUp className="mr-2 h-5 w-5" />
                 Explore Projects
@@ -110,9 +111,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Trending Section */}
-      <section className="container mx-auto px-4 py-8">
-        <TrendingSection />
+      <section>
+        <RecentLaunches />
       </section>
 
       {/* Features Section */}

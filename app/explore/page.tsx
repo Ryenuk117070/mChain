@@ -36,9 +36,8 @@ async function ExploreContent() {
 
     return (
       <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Explore Projects</h1>
-          <p className="text-muted-foreground">Discover tokens launched by developers</p>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Gitscreener</h1>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -72,9 +71,8 @@ async function ExploreContent() {
 function ExploreLoading() {
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Explore Projects</h1>
-        <p className="text-muted-foreground">Discover tokens launched by developers</p>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Gitscreener</h1>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
