@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     formData.append("name", name)
     formData.append("symbol", symbol)
     formData.append("description", description)
-    formData.append("twitter", "")
+    formData.append("twitter", "https://www.gitr.fun/gitscreener")
     formData.append("telegram", "")
     formData.append("website", website || "https://gitr.fun")
     formData.append("showName", "true")
