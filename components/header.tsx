@@ -30,15 +30,6 @@ export function Header({ user, showAuthButtons = true }: HeaderProps) {
               @gitrdotfun
               <ExternalLink className="h-3 w-3" />
             </Link>
-            <span className="text-muted-foreground">•</span>
-            <Link
-              href="https://x.com/Kuneyt7"
-              target="_blank"
-              className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              @Kuneyt7
-              <ExternalLink className="h-3 w-3" />
-            </Link>
           </div>
 
           {showAuthButtons && (
