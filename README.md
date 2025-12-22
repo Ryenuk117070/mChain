@@ -1,12 +1,12 @@
-# Gitr
+# RepoDotFun
 
-**Gitr** is a lightweight, creator-first GitHub marketplace that lets developers **publish, discover, and sell code** with **crypto-native payments**. Think of it as a bridge between open-source culture and on-chain monetization — without bloated platforms, heavy fees, or unnecessary friction.
+**RepoDotFun** is a lightweight, creator-first GitHub marketplace that lets developers **publish, discover, and sell code** with **crypto-native payments**. Think of it as a bridge between open-source culture and on-chain monetization — without bloated platforms, heavy fees, or unnecessary friction.
 
 ---
 
-## 🚀 What Is Gitr?
+## 🚀 What Is RepoDotFun?
 
-Gitr allows developers to:
+RepoDotFun allows developers to:
 
 * List GitHub repositories, snippets, or templates
 * Sell access using crypto (Sol / USDC)
@@ -115,6 +115,20 @@ Future versions may expand into:
 
 ## 🧑‍💻 For Developers
 
-Gitr is being built openly and iteratively. Feedback, ideas, and experiments are welcome.
+RepoDotFun is being built openly and iteratively. Feedback, ideas, and experiments are welcome.
 
-If you're building tools, templates, or scripts and want a **clean way to
+If you're building tools, templates, or scripts and want a **clean way to monetize without selling out**, Gitr is for you.
+
+---
+
+## ⚠️ Disclaimer
+
+RepoDotFun does not guarantee the quality, security, or legality of listed code. Buyers are responsible for reviewing and understanding what they purchase.
+
+---
+
+## 📬 Contact / Updates
+
+More details, demos, and updates coming soon.
+
+> Build fast. Ship code. Get paid.
